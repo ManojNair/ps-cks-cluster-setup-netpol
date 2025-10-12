@@ -16,7 +16,7 @@ Network Policies are declarative—you write what you want, the CNI enforces it.
 We've got a namespace called `production-app` with three pods: frontend, backend, and database. We've applied several policies:
 - Default deny ingress
 - Frontend can connect to backend on port 80
-- Backend can connect to database on port 3306
+- Backend can connect to database on port 5432
 - Egress policy for backend
 
 Let's validate these are working.
@@ -31,7 +31,7 @@ kubectl run test-pod --image=nicolaka/netshoot -n production-app -- sleep 3600
 
 I'm using netshoot—it's got curl, nc, nslookup, all the tools we need.
 
-Now try connecting from this test pod to backend:
+Now try connecting from this test pod to backend service:
 
 ```bash
 kubectl exec -n production-app test-pod -- curl --max-time 3 backend
@@ -52,53 +52,67 @@ Also times out. Namespace is locked down.
 
 Now test that frontend CAN connect to backend.
 
-Get the backend IP:
+Using the service name (recommended approach):
 
 ```bash
-BACKEND_IP=$(kubectl get pod backend -n production-app -o jsonpath='{.status.podIP}')
-echo $BACKEND_IP
-```
-
-Exec into frontend and try connecting:
-
-```bash
-kubectl exec -n production-app frontend -- curl --max-time 3 $BACKEND_IP
+kubectl exec -n production-app frontend -- curl --max-time 3 backend
 ```
 
 Should succeed. You'll see the nginx welcome page HTML. Policy allowing frontend to backend is working.
 
+Alternative using pod IP:
+
+```bash
+BACKEND_IP=$(kubectl get pod backend -n production-app -o jsonpath='{.status.podIP}')
+kubectl exec -n production-app frontend -- curl --max-time 3 $BACKEND_IP
+```
+
 Verify frontend can ONLY connect on port 80:
 
 ```bash
-kubectl exec -n production-app frontend -- curl --max-time 3 $BACKEND_IP:8080
+kubectl exec -n production-app frontend -- curl --max-time 3 backend:8080
 ```
 
 Should timeout. Policy only allows port 80. Port restriction working.
 
 ### Test 3: Backend to Database
 
-Test backend to database on port 3306.
+Test backend to database on port 5432.
+
+Using service name (recommended):
+
+```bash
+kubectl exec -n production-app backend -- bash -c "echo > /dev/tcp/database/5432" && echo "Connection successful" || echo "Connection failed"
+```
+
+Alternative using pod IP:
 
 ```bash
 DATABASE_IP=$(kubectl get pod database -n production-app -o jsonpath='{.status.podIP}')
-kubectl exec -n production-app backend -- nc -zv $DATABASE_IP 3306
+kubectl exec -n production-app backend -- bash -c "echo > /dev/tcp/$DATABASE_IP/5432" && echo "Connection successful" || echo "Connection failed"
 ```
 
-`-z` means zero-I/O mode, just scanning. `-v` is verbose. Should see "succeeded" or "open"—connection allowed.
+This uses bash's built-in `/dev/tcp` feature to test TCP connectivity. Should see "Connection successful"—connection allowed.
+
+Alternatively, you can test with a simple curl command to check if the port is open:
+
+```bash
+kubectl exec -n production-app backend -- curl -v --max-time 3 telnet://database:5432
+```
 
 Verify backend CANNOT connect on other ports:
 
 ```bash
-kubectl exec -n production-app backend -- nc -zv -w 3 $DATABASE_IP 80
+kubectl exec -n production-app backend -- bash -c "echo > /dev/tcp/database/80" && echo "Connection successful" || echo "Connection failed"
 ```
 
-`-w 3` is a 3-second timeout. Should fail. Only port 3306 allowed.
+`-w 3` is a 3-second timeout. Should fail. Only port 5432 allowed.
 
 ### Summary
 
 We've validated Network Policies with real connectivity tests. The pattern: verify default deny blocks traffic, confirm allowed paths work on correct ports, validate port restrictions.
 
-Key tools: `curl` for HTTP, `nc` for TCP port checks, `nslookup` for DNS. Always test both positive cases—what should work—and negative cases—what should be blocked.
+Key tools: `curl` for HTTP, `/dev/tcp` for TCP port checks, `nslookup` for DNS. Always test both positive cases—what should work—and negative cases—what should be blocked.
 
 For the CKS exam, you need to be comfortable testing policies hands-on. Validation is just as important as creation.
 

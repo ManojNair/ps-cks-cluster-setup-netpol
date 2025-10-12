@@ -14,10 +14,16 @@ Testing egress means checking both what's allowed and what's blocked. Let's vali
 First, DNS—the most critical part:
 
 ```bash
-kubectl exec -n production-app backend -- nslookup kubernetes.default.svc.cluster.local
+kubectl exec -n production-app backend -- getent hosts kubernetes.default.svc.cluster.local
 ```
 
 Should work. We allowed UDP port 53 to kube-system. If this fails, your pods can't resolve service names—super common mistake.
+
+Alternative DNS test using curl:
+
+```bash
+kubectl exec -n production-app backend -- curl --max-time 3 -I kubernetes.default.svc.cluster.local
+```
 
 Verify backend CANNOT reach random external destinations:
 
@@ -31,7 +37,7 @@ Test backend CAN connect to database:
 
 ```bash
 DATABASE_IP=$(kubectl get pod database -n production-app -o jsonpath='{.status.podIP}')
-kubectl exec -n production-app backend -- nc -zv $DATABASE_IP 3306
+kubectl exec -n production-app backend -- bash -c "echo > /dev/tcp/$DATABASE_IP/5432" && echo "Connection successful" || echo "Connection failed"
 ```
 
 Should succeed. Egress rule allowing database connections works.
@@ -94,7 +100,8 @@ Look for Calico, Cilium, or Weave Net pods. If they're not there or failing, pol
 
 The number one egress mistake. You MUST allow DNS:
 
-```yaml
+```bash
+# Example egress rule snippet (add this to every egress policy)
 egress:
 - to:
   - namespaceSelector:

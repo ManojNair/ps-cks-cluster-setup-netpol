@@ -15,7 +15,8 @@ We're continuing with our three-tier app in `production-app`: frontend, backend,
 
 Here's the scenario: we want to control where backend can connect TO.
 
-```yaml
+```bash
+cat << EOF > backend-allow-egress.yaml
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -34,7 +35,7 @@ spec:
           tier: database
     ports:
     - protocol: TCP
-      port: 3306
+      port: 5432
   - to:
     - namespaceSelector:
         matchLabels:
@@ -42,13 +43,14 @@ spec:
     ports:
     - protocol: UDP
       port: 53
+EOF
 ```
 
 `policyTypes: - Egress`—we're controlling outbound traffic. Once you specify this, the pod becomes isolated for egress. Only explicitly allowed connections work.
 
 `egress:`—this lists allowed outbound connections.
 
-First rule: `to: - podSelector: matchLabels: tier: database`—backend can connect TO database pods on TCP 3306. The `to` field is like `from` but reversed.
+First rule: `to: - podSelector: matchLabels: tier: database`—backend can connect TO database pods on TCP 5432. The `to` field is like `from` but reversed.
 
 Second rule—and this is critical—DNS. We're allowing connections to kube-system on UDP port 53.
 
@@ -66,7 +68,8 @@ Now backend can only reach database and DNS. No external internet, no other serv
 
 Sometimes you need to allow traffic to external IPs outside your cluster. Say our frontend needs to call an external payment API at 203.0.113.0/24.
 
-```yaml
+```bash
+cat << EOF > frontend-allow-external-api.yaml
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -87,6 +90,7 @@ spec:
     ports:
     - protocol: TCP
       port: 443
+EOF
 ```
 
 `ipBlock: cidr: 203.0.113.0/24`—instead of pod or namespace selectors, we're using an IP range. This allows traffic to that entire /24. Use this for external services, cloud APIs, anything outside Kubernetes.
@@ -101,7 +105,8 @@ kubectl apply -f frontend-allow-external-api.yaml
 
 You can combine namespace and pod selectors. Here's backend connecting to Prometheus in a monitoring namespace:
 
-```yaml
+```bash
+# Example egress rule snippet (add this to a policy's egress section)
 egress:
 - to:
   - namespaceSelector:

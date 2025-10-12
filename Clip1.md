@@ -11,7 +11,7 @@ Alright, let's talk about network security policies in Kubernetes. If you're stu
 
 Think about a typical Kubernetes cluster for a moment. You've got pods running everywhere—frontend, backend, database, maybe some microservices. By default, Kubernetes networking is wide open. Any pod can connect to any other pod. Which is convenient for development, sure, but from a security standpoint? Not great.
 
-Network Policies are basically firewall rules at the pod level. They work at layer 3 and 4—IP addresses and ports. You can define rules like "frontend can talk to backend on port 80, but only backend can reach the database on 3306." That kind of thing.
+Network Policies are basically firewall rules at the pod level. They work at layer 3 and 4—IP addresses and ports. You can define rules like "frontend can talk to backend on port 80, but only backend can reach the database on 5432." That kind of thing.
 
 ### Why This Matters for CKS
 

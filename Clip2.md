@@ -67,16 +67,28 @@ kubectl create namespace production-app
 ```
 
 **(Voiceover)**  
-Once that’s done, let’s spin up three pods — one for each tier of the application.  
+Once that's done, let's spin up three pods — one for each tier of the application.  
 
 ```bash
 kubectl run frontend --image=nginx --labels=tier=frontend -n production-app
 kubectl run backend --image=nginx --labels=tier=backend -n production-app
-kubectl run database --image=nginx --labels=tier=database -n production-app
+kubectl run database --image=postgres:13 --labels=tier=database -n production-app --env="POSTGRES_DB=myapp" --env="POSTGRES_USER=appuser" --env="POSTGRES_PASSWORD=securepass123"
 ```
 
 **(Calm pacing)**  
-This creates three NGINX pods labeled `frontend`, `backend`, and `database`.  
+This creates two NGINX pods for frontend and backend, and a PostgreSQL database pod with proper credentials.
+
+Now let's expose these pods as services so they can communicate properly:
+
+```bash
+kubectl expose pod frontend --port=80 --target-port=80 -n production-app
+kubectl expose pod backend --port=80 --target-port=80 -n production-app
+kubectl expose pod database --port=5432 --target-port=5432 -n production-app
+```
+
+**(Pause)**  
+This creates services for each pod — frontend and backend on port 80, and database on PostgreSQL's standard port 5432.
+The services will have the same labels as the pods, so network policies will work correctly.
 Right now, all of them can freely talk to each other.  
 
 **(Pause)**  
@@ -101,10 +113,11 @@ Click it, and copy the sample YAML from that page.
 This is an important habit to build for the exam — rather than trying to memorize,  
 know **where** to find snippets and how to adapt them quickly.  
 
-Now, back in your terminal, let’s paste that into a file called `default-deny-ingress.yaml`.  
+Now, back in your terminal, let's paste that into a file called `default-deny-ingress.yaml`.  
 It should look like this:
 
-```yaml
+```bash
+cat << EOF > default-deny-ingress.yaml
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -114,6 +127,7 @@ spec:
   podSelector: {}
   policyTypes:
   - Ingress
+EOF
 ```
 
 Let’s break this down.
@@ -146,7 +160,8 @@ Next, let’s allow a specific communication path — frontend to backend on por
 **(Voiceover)**  
 Create a new file called `backend-allow-frontend.yaml` and paste this in:  
 
-```yaml
+```bash
+cat << EOF > backend-allow-frontend.yaml
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -166,6 +181,7 @@ spec:
     ports:
     - protocol: TCP
       port: 80
+EOF
 ```
 
 **(Calm explanation)**  
@@ -190,12 +206,13 @@ Now only the frontend can talk to the backend on port 80 — and nothing else.
 
 ### Example 3: Allow Backend to Database  
 
-Now we’ll connect the backend to the database — port 3306 for MySQL.  
+Now we'll connect the backend to the database — port 5432 for PostgreSQL.
 
 **(Voiceover)**  
 Create a file named `database-allow-backend.yaml` and add:  
 
-```yaml
+```bash
+cat << EOF > database-allow-backend.yaml
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -214,7 +231,8 @@ spec:
           tier: backend
     ports:
     - protocol: TCP
-      port: 3306
+      port: 5432
+EOF
 ```
 
 Same structure, but this time for the database layer.
@@ -228,7 +246,7 @@ kubectl apply -f database-allow-backend.yaml
 
 Now we have a clear, layered policy chain:  
 Frontend → Backend (80)  
-Backend → Database (3306)  
+Backend → Database (5432)  
 Everything else is blocked.
 
 ---

@@ -5,35 +5,45 @@
 ## Opening Context – The Lab Environment  
 
 **(Tone: friendly and conversational)**  
-Before we dive in — let me quickly talk about the environment I’ll be using for all the demos in this course... **Killerkoda**.
+Before we dive in — let me quickly talk about the environment I'll be using for all the demos in this course... **KIND running in GitHub Codespaces**.
 
 **(Pause)**  
-Killerkoda gives you a fully interactive environment designed specifically for practicing Kubernetes scenarios —   
+GitHub Codespaces gives us a fantastic cloud-based development environment with **VS Code** in the browser —   
 and the best part?  
-It’s almost an exact replica of the **Certified Kubernetes Security Specialist**, or **CKS**, exam experience.
+We can spin up a full **KIND** cluster with **Calico networking** that supports Network Policies right out of the box.
 
 **(Slight emphasis)**  
-Now, you might be wondering — *why does that matter?*  
+Now, you might be wondering — *why this setup?*  
 
-Well, during the real exam, you’re not running things on your powerful local machine.  
-You’re connected to a **remote desktop** environment — and that means performance can sometimes feel… a little sluggish.  
+Codespaces helps you **provision a Kubernetes cluster quickly** so you can focus on learning the core concepts required for the exam — without getting bogged down in cluster setup details.
 
-Plus, you won’t have your favorite tools like **VS Code**, or your customized terminal setup with all your aliases and themes.  
+But here's the thing — once you've got a solid handle on these concepts, I'd strongly recommend practicing on **Killerkoda** or the **Killer Shell** platforms that you get access to as part of your certification purchase.
 
 **(Pause)**  
-So getting used to that exam-style setup early really helps.  
+Those platforms will help you get familiar with the actual **exam environment** — the remote desktop feel, the performance characteristics, and the exact tooling you'll have during the real test.
 
-The good news? In both the exam and Killerkoda, you can simply use **`k`** instead of `kubectl`.  
-Bash autocompletion is already configured — which is a *huge* time-saver.  
+So think of it this way: **Codespaces for learning**, **Killer Shell for exam prep**.
 
-And if you need documentation, you’ll have Firefox access to **kubernetes.io**.  
-Later in this course, I’ll show you some quick **navigation and time-saving tips** that make a real difference in your score.  
+Now, let's quickly set up our environment to match the exam experience.  
+We'll configure the **`k`** alias for `kubectl` and enable bash autocompletion — both are *huge* time-savers during the exam.
 
-If you want to follow along, I recommend using either **Killerkoda** or your own practice cluster —   
-maybe **Docker Desktop with KIND**, or **Minikube**.  
+```bash
+alias k=kubectl
+echo 'alias k=kubectl' >> ~/.bashrc
+source <(kubectl completion bash)
+echo 'source <(kubectl completion bash)' >> ~/.bashrc
+```
 
-Personally, I prefer Killerkoda — and just to be clear, I’m not affiliated with them in any way.  
-It just helps me stay familiar with the exam experience and avoid fumbling between windows or docs.
+**(Pause)**  
+Perfect! Now we can use **`k`** just like in the real exam, and tab completion will work seamlessly.  
+
+And since we're in a browser, we can easily switch between our terminal and the **kubernetes.io** documentation when we need to look up YAML snippets.  
+Later in this course, I'll show you some quick **navigation and time-saving tips** that make a real difference in your score.
+
+If you want to follow along, you can use the same setup — **GitHub Codespaces with KIND** —   
+or your own local cluster like **Docker Desktop**, **Minikube**, or any other Kubernetes setup.  
+
+Personally, I love this Codespaces approach because it's consistent, reproducible, and gives us that cloud-native feel while still having access to proper tooling.
 
 **(Pause, transition)**  
 Now before we begin writing our policies — one quick note.  
@@ -55,9 +65,9 @@ We’ll walk through a few real-world examples — and I’ll explain each YAML 
 
 ### Demo Setup  
 
-We’ll start with a simple **three-tier app** — frontend, backend, and database.  
+We'll start with a simple **three-tier app** — frontend, backend, and database.  
 
-Make sure your cluster’s CNI supports Network Policies — like **Calico**, **Cilium**, or **Weave Net**.
+Since we're using our **KIND cluster with Calico**, we already have Network Policy support built in — so we're ready to go!
 
 **(Instructional tone)**  
 Let’s open our terminal and create a new namespace called *production-app*:  
@@ -102,8 +112,8 @@ Let’s start with our **first policy** — a *default deny ingress* policy.
 And this time, instead of memorizing YAML, we’ll do it the *exam way* — using the **official Kubernetes documentation**.
 
 **(Instructional tone)**  
-Let’s open **Firefox** inside Killerkoda and go to **kubernetes.io**.  
-In the search bar, type **“netpol.”**
+Let's open a new browser tab in our Codespaces environment and go to **kubernetes.io**.  
+In the search bar, type **"netpol."**
 
 **(Pause)**  
 On the right-hand side, under **Default policies**, you’ll see an example titled *Default deny all ingress traffic*.  

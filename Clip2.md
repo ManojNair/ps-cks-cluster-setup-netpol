@@ -24,6 +24,27 @@ Those platforms will help you get familiar with the actual **exam environment** 
 
 So think of it this way: **Codespaces for learning**, **Killer Shell for exam prep**.
 
+**(Pause)**  
+Now, before we dive into Network Policies, let's get our cluster up and running.  
+I've prepared a setup script that will install **KIND**, create our cluster, and configure **Calico** networking — all in one go.
+
+**(Instructional tone)**  
+If you're following along in your own Codespaces environment, you can run the setup script like this:
+
+```bash
+chmod +x ghcodespacessetup.sh
+./ghcodespacessetup.sh
+```
+
+**(Voiceover)**  
+This script does a few important things:  
+First, it downloads and installs **KIND** and **kubectl**.  
+Then it creates a two-node cluster — one control plane and one worker — with the default CNI disabled.  
+Finally, it installs **Calico** which gives us proper Network Policy support.
+
+**(Pause)**  
+The whole process takes about 2-3 minutes, and when it's done, you'll see the Calico pods starting up in the `calico-system` namespace.
+
 Now, let's quickly set up our environment to match the exam experience.  
 We'll configure the **`k`** alias for `kubectl` and enable bash autocompletion — both are *huge* time-savers during the exam.
 

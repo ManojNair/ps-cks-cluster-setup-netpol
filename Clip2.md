@@ -49,10 +49,10 @@ Now, let's quickly set up our environment to match the exam experience.
 We'll configure the **`k`** alias for `kubectl` and enable bash autocompletion — both are *huge* time-savers during the exam.
 
 ```bash
-alias k=kubectl
-echo 'alias k=kubectl' >> ~/.bashrc
-source <(kubectl completion bash)
-echo 'source <(kubectl completion bash)' >> ~/.bashrc
+echo 'source <(kubectl completion bash)' >>~/.bashrc
+echo 'alias k=kubectl' >>~/.bashrc
+echo 'complete -o default -F __start_kubectl k' >>~/.bashrc
+source .bashrc 
 ```
 
 **(Pause)**  

@@ -15,9 +15,10 @@ Network Policies are declarative—you write what you want, the CNI enforces it.
 
 We've got a namespace called `production-app` with three pods: frontend, backend, and database. We've applied several policies:
 - Default deny ingress
-- Frontend can connect to backend on port 80
-- Backend can connect to database on port 5432
-- Egress policy for backend
+- Backend accepts ingress from frontend on port 80
+- Database accepts ingress from backend on port 5432
+- Frontend egress policy (allows connection to backend and DNS)
+- Backend egress policy (allows connection to database and DNS)
 
 Let's validate these are working.
 
@@ -29,7 +30,9 @@ First, verify our default deny is blocking traffic. Create a test pod without an
 kubectl run test-pod --image=nicolaka/netshoot -n production-app -- sleep 3600
 ```
 
-I'm using netshoot—it's got curl, nc, nslookup, all the tools we need.
+I'm using netshoot—it's got curl, nc, nslookup, dig, and many other network diagnostic tools we need.
+
+Note: Our frontend and backend pods use nginx, which has limited tools (curl, wget, getent, bash). For comprehensive testing, netshoot is the better choice.
 
 Now try connecting from this test pod to backend service:
 
@@ -82,35 +85,45 @@ Test backend to database on port 5432.
 Using service name (recommended):
 
 ```bash
-kubectl exec -n production-app backend -- bash -c "echo > /dev/tcp/database/5432" && echo "Connection successful" || echo "Connection failed"
+kubectl exec -n production-app backend -- timeout 3 bash -c 'cat < /dev/null > /dev/tcp/database/5432' && echo "Connection successful" || echo "Connection failed"
 ```
 
 Alternative using pod IP:
 
 ```bash
 DATABASE_IP=$(kubectl get pod database -n production-app -o jsonpath='{.status.podIP}')
-kubectl exec -n production-app backend -- bash -c "echo > /dev/tcp/$DATABASE_IP/5432" && echo "Connection successful" || echo "Connection failed"
+kubectl exec -n production-app backend -- timeout 3 bash -c "cat < /dev/null > /dev/tcp/$DATABASE_IP/5432" && echo "Connection successful" || echo "Connection failed"
 ```
 
 This uses bash's built-in `/dev/tcp` feature to test TCP connectivity. Should see "Connection successful"—connection allowed.
 
-Alternatively, you can test with a simple curl command to check if the port is open:
+Alternatively, you can test with netcat if available:
 
 ```bash
-kubectl exec -n production-app backend -- curl -v --max-time 3 telnet://database:5432
+kubectl exec -n production-app backend -- nc -zv -w 3 database 5432
 ```
 
 Verify backend CANNOT connect on other ports:
 
 ```bash
-kubectl exec -n production-app backend -- bash -c "echo > /dev/tcp/database/80" && echo "Connection successful" || echo "Connection failed"
+kubectl exec -n production-app backend -- timeout 3 bash -c 'cat < /dev/null > /dev/tcp/database/80' && echo "Connection successful" || echo "Connection failed"
 ```
 
-`-w 3` is a 3-second timeout. Should fail. Only port 5432 allowed.
+Should fail after the 3-second timeout. Only port 5432 allowed.
+
+### Test 4: Verify Isolation - Frontend Cannot Reach Database
+
+An important test: verify that frontend CANNOT directly connect to database. Both the ingress and egress policies should block this:
+
+```bash
+kubectl exec -n production-app frontend -- timeout 3 bash -c 'cat < /dev/null > /dev/tcp/database/5432' && echo "Connection successful" || echo "Connection failed"
+```
+
+Should fail. The database ingress policy only allows connections from backend, and the frontend egress policy only allows connections to backend (not database). This validates our network segmentation is working correctly.
 
 ### Summary
 
-We've validated Network Policies with real connectivity tests. The pattern: verify default deny blocks traffic, confirm allowed paths work on correct ports, validate port restrictions.
+We've validated Network Policies with real connectivity tests. The pattern: verify default deny blocks traffic, confirm allowed paths work on correct ports, validate port restrictions, and test that unauthorized paths are blocked.
 
 Key tools: `curl` for HTTP, `/dev/tcp` for TCP port checks, `nslookup` for DNS. Always test both positive cases—what should work—and negative cases—what should be blocked.
 

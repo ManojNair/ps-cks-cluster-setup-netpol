@@ -17,27 +17,39 @@ First, DNS—the most critical part:
 kubectl exec -n production-app backend -- getent hosts kubernetes.default.svc.cluster.local
 ```
 
-Should work. We allowed UDP port 53 to kube-system. If this fails, your pods can't resolve service names—super common mistake.
+Should work and return an IP address. We allowed UDP and TCP port 53 to kube-system. If this fails, your pods can't resolve service names—super common mistake.
 
-Alternative DNS test using curl:
+Another way to test DNS resolution:
 
 ```bash
-kubectl exec -n production-app backend -- curl --max-time 3 -I kubernetes.default.svc.cluster.local
+kubectl exec -n production-app backend -- getent hosts database
 ```
 
+This should resolve to the database service IP, confirming DNS is working for internal services.
+
+Note: Don't use curl or wget to test DNS alone—they'll attempt HTTP connections which may be blocked by egress policies even if DNS works. Use `getent hosts` to test pure DNS resolution.
+
 Verify backend CANNOT reach random external destinations:
+
+```bash
+kubectl exec -n production-app backend -- timeout 3 bash -c 'cat < /dev/null > /dev/tcp/8.8.8.8/53' && echo "Connection successful" || echo "Connection failed"
+```
+
+Should fail. Our egress policy only allows connections to database pods and kube-system for DNS, not arbitrary external IPs. Egress isolation working.
+
+You can also test that HTTP connections to external sites are blocked:
 
 ```bash
 kubectl exec -n production-app backend -- curl --max-time 3 google.com
 ```
 
-Should timeout. DNS resolves google.com, but the HTTP connection is blocked. Our egress policy only allows database and DNS. Egress isolation working.
+This will timeout because the egress policy doesn't permit connections to external destinations.
 
 Test backend CAN connect to database:
 
 ```bash
 DATABASE_IP=$(kubectl get pod database -n production-app -o jsonpath='{.status.podIP}')
-kubectl exec -n production-app backend -- bash -c "echo > /dev/tcp/$DATABASE_IP/5432" && echo "Connection successful" || echo "Connection failed"
+kubectl exec -n production-app backend -- timeout 3 bash -c "cat < /dev/null > /dev/tcp/$DATABASE_IP/5432" && echo "Connection successful" || echo "Connection failed"
 ```
 
 Should succeed. Egress rule allowing database connections works.
@@ -110,9 +122,13 @@ egress:
   ports:
   - protocol: UDP
     port: 53
+  - protocol: TCP
+    port: 53
 ```
 
-Add this to every egress policy.
+Include both UDP and TCP on port 53. Add this to every egress policy.
+
+To test DNS, use tools available in your container. For nginx: `getent hosts <hostname>` or `curl <hostname>`. For comprehensive testing, use a netshoot pod which includes nslookup, dig, and other DNS tools.
 
 **Problem 3: Connections work but shouldn't.**
 
@@ -144,7 +160,9 @@ Create dedicated test pods:
 kubectl run test-client --image=nicolaka/netshoot -n production-app -- sleep 3600
 ```
 
-Netshoot includes curl, nc, nslookup—everything you need. Keep it running for multiple tests.
+Netshoot includes curl, nc, nslookup, dig, and many other network tools—everything you need for comprehensive testing. Keep it running for multiple tests.
+
+Note: The nginx containers used in our demos have limited tools (curl, wget, getent). For more comprehensive DNS testing with tools like nslookup or dig, use netshoot.
 
 Test from different namespaces:
 

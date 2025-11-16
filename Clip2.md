@@ -119,7 +119,8 @@ kubectl expose pod database --port=5432 --target-port=5432 -n production-app
 
 **(Pause)**  
 This creates services for each pod — frontend and backend on port 80, and database on PostgreSQL's standard port 5432.
-The services will have the same labels as the pods, so network policies will work correctly.
+When you use `kubectl expose pod`, it automatically creates a service with a selector matching the pod's labels.
+So the frontend service will select pods with `tier=frontend`, backend with `tier=backend`, and database with `tier=database`.
 Right now, all of them can freely talk to each other.  
 
 **(Pause)**  

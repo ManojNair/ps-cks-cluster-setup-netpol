@@ -52,11 +52,31 @@ This policy allows the frontend to:
 1. Connect to backend pods on TCP port 80
 2. Resolve DNS queries via kube-system
 
+**(Instructional tone)**  
+Let's apply this egress policy:
+
 ```bash
 kubectl apply -f frontend-allow-egress.yaml
 ```
 
-Now the frontend can only reach the backend and DNS—nothing else.
+**(Voiceover)**  
+You'll see "networkpolicy/frontend-allow-egress created" in your output.
+
+**(Pause for emphasis)**  
+So what just happened?  
+The moment we applied this policy with `policyTypes: Egress`, the frontend pod became **isolated for egress traffic**.  
+This means it can no longer make ANY outbound connections except what we explicitly allow.
+
+**(Calm explanation)**  
+Calico has updated the iptables rules on the node where the frontend pod runs.  
+Now the frontend can ONLY:
+- Connect to pods labeled `tier=backend` on TCP port 80
+- Send DNS queries to kube-system on UDP and TCP port 53
+
+**(Pause)**  
+Everything else is blocked.  
+The frontend can't reach the internet, can't connect to other namespaces, can't even ping other pods in the same namespace.  
+Only backend on port 80, and DNS. That's it.
 
 ### Backend Egress Policy with DNS Support
 
@@ -109,11 +129,35 @@ Note: In Kubernetes 1.22+, the kube-system namespace is automatically labeled wi
 
 Why is DNS so important? Without it, your pods can't resolve domain names. They'll fail to connect to services even if you allow the IPs. Always include DNS in egress policies. I can't stress this enough—it's the most common mistake people make.
 
+**(Instructional tone)**  
+Alright, let's apply this backend egress policy:
+
 ```bash
 kubectl apply -f backend-allow-egress.yaml
 ```
 
-Now backend can only reach database and DNS. No external internet, no other services.
+**(Voiceover)**  
+You should see "networkpolicy/backend-allow-egress created" confirming the policy is active.
+
+**(Pause)**  
+Now our backend pod is also isolated for egress.  
+Here's what's interesting—we now have **both ingress AND egress** policies working together.
+
+**(Calm explanation)**  
+For ingress, we have `backend-allow-frontend` which allows the frontend to connect IN to the backend.  
+For egress, we just applied `backend-allow-egress` which allows the backend to connect OUT to the database.
+
+**(Pause for clarity)**  
+Think about the complete traffic flow:  
+Frontend can connect OUT to backend (frontend's egress allows it).  
+Backend can accept IN from frontend (backend's ingress allows it).  
+Backend can connect OUT to database (backend's egress allows it).  
+Database can accept IN from backend (database's ingress allows it).
+
+**(Instructional tone)**  
+Both sides of every connection must agree—that's how Network Policies work.  
+And critically, both frontend and backend can still do DNS resolution because we explicitly allowed it.  
+Without those DNS rules, service name resolution would fail, even though the IP connectivity would be allowed.
 
 ### Using IP Blocks for External APIs
 
@@ -159,9 +203,35 @@ EOF
 
 Notice we also included DNS in this egress policy. Remember—every time you create an egress policy, you need to allow DNS to kube-system. Without it, your pods can't resolve domain names, and they'll fail to connect even to internal services.
 
+**(Instructional tone)**  
+Let's apply this policy to allow external API access:
+
 ```bash
 kubectl apply -f frontend-allow-external-api.yaml
 ```
+
+**(Voiceover)**  
+You'll see "networkpolicy/frontend-allow-external-api created" in the output.
+
+**(Pause)**  
+Now this is important—what happens when we apply a second egress policy to the same pod?
+
+**(Calm explanation)**  
+Remember, Network Policies use **OR** logic.  
+We already have `frontend-allow-egress` allowing connections to backend and DNS.  
+Now we've added `frontend-allow-external-api` allowing connections to 203.0.113.0/24 on port 443, plus DNS.
+
+**(Pause for emphasis)**  
+Kubernetes combines these policies.  
+The frontend pod can now make ALL connections allowed by ANY matching policy:  
+- Backend on port 80 (from the first policy)  
+- External API at 203.0.113.0/24 on port 443 (from this new policy)  
+- Except 203.0.113.1 specifically (carved out by the `except` clause)  
+- And DNS to kube-system (allowed by both policies)
+
+**(Instructional tone)**  
+This is how you build granular egress controls—layer multiple policies, each authorizing specific traffic patterns.  
+Calico translates all of these into a unified set of iptables rules that permit exactly this traffic and nothing more.
 
 ### Combining Selectors
 

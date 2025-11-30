@@ -197,11 +197,16 @@ spec:
 EOF
 ```
 
-`ipBlock: cidr: 203.0.113.0/24`—instead of pod or namespace selectors, we're using an IP range. This allows traffic to that entire /24. Use this for external services, cloud APIs, anything outside Kubernetes.
+`ipBlock: cidr: 203.0.113.0/24`—instead of pod or namespace selectors, we're using an IP range. This allows traffic to that entire /24 subnet. Use this for external services, cloud APIs, or anything outside your Kubernetes cluster.
 
-`except: - 203.0.113.1/32`—this carves out exceptions. We're allowing the /24 EXCEPT for .1. Maybe that's a compromised host or a restricted endpoint.
+`except: - 203.0.113.1/32`—this is a really powerful feature. It lets you carve out exceptions from that CIDR block.  
+So we're saying: "Allow traffic to the whole 203.0.113.0/24 network... EXCEPT for this one specific IP, 203.0.113.1."  
+Maybe that's a known malicious host, or a restricted management endpoint you don't want your app touching.
 
-Notice we also included DNS in this egress policy. Remember—every time you create an egress policy, you need to allow DNS to kube-system. Without it, your pods can't resolve domain names, and they'll fail to connect even to internal services.
+**(Pause)**  
+Notice we also included DNS in this egress policy.  
+Remember—every time you create an egress policy, you need to allow DNS to kube-system.  
+Without it, your pods can't resolve domain names, and they'll fail to connect even to internal services.
 
 **(Instructional tone)**  
 Let's apply this policy to allow external API access:

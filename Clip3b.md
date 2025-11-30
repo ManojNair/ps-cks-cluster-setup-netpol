@@ -397,13 +397,13 @@ This validates that your policies are properly scoped to the namespace and not a
 
 ### Best Practices
 
-Five things for the CKS exam:
+Before we wrap up, here are five golden rules for the CKS exam:
 
-1. Test incrementally. One policy at a time. Don't create ten and hope.
-2. Test positive AND negative cases. What should work and what should fail.
-3. Always test DNS in egress policies. Most common failure.
-4. Use descriptive names like `backend-allow-frontend`. Makes debugging easier.
-5. Keep test pods ready. Netshoot in different namespaces saves time.
+1.  **Test incrementally.** Don't write ten policies and apply them all at once. Create one, test it, then move to the next.
+2.  **Test both positive AND negative cases.** Verify that what *should* work works, AND that what *should be blocked* is actually blocked.
+3.  **Always allow DNS in egress policies.** I sound like a broken record, but this is the most common failure point.
+4.  **Use descriptive names.** Names like `backend-allow-frontend` tell you exactly what the policy does, making debugging much easier than `policy-1`.
+5.  **Keep test pods ready.** Having a netshoot pod running in different namespaces saves you precious minutes during the exam.
 
 ### Cleanup
 

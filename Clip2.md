@@ -22,6 +22,9 @@ kubectl create namespace production-app
 **(Voiceover)**  
 Once that's done, let's spin up three pods — one for each tier of the application.  
 
+**(Instructional tone)**  
+We'll use `kubectl run` to create these pods. Pay close attention to the `--labels` flag here — this is critical for Network Policies later.
+
 ```bash
 kubectl run frontend --image=nginx --labels=tier=frontend -n production-app
 kubectl run backend --image=nginx --labels=tier=backend -n production-app
@@ -29,8 +32,12 @@ kubectl run database --image=postgres:13 --labels=tier=database -n production-ap
 ```
 
 **(Calm pacing)**  
-This creates two NGINX pods for frontend and backend, and a PostgreSQL database pod with proper credentials.
+We're creating two NGINX pods for the frontend and backend, and a PostgreSQL database pod.  
+Notice those labels: `tier=frontend`, `tier=backend`, and `tier=database`.  
+Network Policies rely entirely on these labels to identify which pods to protect and which traffic to allow.  
+If you miss a label or make a typo here, your policies won't work.
 
+**(Instructional tone)**  
 Now let's expose these pods as services so they can communicate properly:
 
 ```bash
@@ -40,10 +47,13 @@ kubectl expose pod database --port=5432 --target-port=5432 -n production-app
 ```
 
 **(Pause)**  
-This creates services for each pod — frontend and backend on port 80, and database on PostgreSQL's standard port 5432.
-When you use `kubectl expose pod`, it automatically creates a service with a selector matching the pod's labels.
-So the frontend service will select pods with `tier=frontend`, backend with `tier=backend`, and database with `tier=database`.
-Right now, all of them can freely talk to each other.  
+This creates a ClusterIP service for each pod.  
+Frontend and backend are exposed on port 80, and the database on PostgreSQL's standard port 5432.  
+
+**(Calm explanation)**  
+When you run `kubectl expose pod`, Kubernetes automatically creates a service that selects the pod based on its labels.  
+So the `frontend` service will route traffic to any pod with the `tier=frontend` label.  
+Right now, because we haven't applied any policies yet, all of these services can freely talk to each other.  
 
 **(Pause)**  
 That’s... not great for security. Let’s lock that down.
@@ -56,7 +66,7 @@ Let’s start with our **first policy** — a *default deny ingress* policy.
 And this time, instead of memorizing YAML, we’ll do it the *exam way* — using the **official Kubernetes documentation**.
 
 **(Instructional tone)**  
-Let's open a new browser tab in our Codespaces environment and go to **kubernetes.io**.  
+Let's open a new browser tab and go to **kubernetes.io**.  
 In the search bar, type **"netpol."**
 
 **(Pause)**  
